@@ -1,4 +1,5 @@
-import { App, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { App, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { CursorPos } from 'readline';
 
 interface MyPluginSettings {
 	mySetting: string;
@@ -13,101 +14,118 @@ export default class MyPlugin extends Plugin {
 
 	cm:CodeMirror.Editor
 
+	countHastags(line:String){
+		var count=0;
+		for(var i = 0;i<line.length;i++){
+			if(line[i] == "#"){
+				count++;
+			}else{
+				break;
+			}
+		}
+		return count;
+	}
+
+	async writeChange(lines:String[]){
+		var newContent=""
+		for(var n=0;n<lines.length;n++){
+			newContent+=lines[n]+"\n";
+		}
+		var data = newContent;
+		const leaf = this.app.workspace.activeLeaf;
+		if(!leaf)
+			return;
+		const currentView = leaf.view as MarkdownView;
+		const currentFile = currentView.file;
+		await this.app.vault.modify(currentFile,data)
+	}
+
+	async increaseHeading(){
+		const start = this.cm.getCursor("from");
+		const end = this.cm.getCursor("to");
+		var data = this.cm.getValue();
+		var lines = data.split("\n");
+		for(var n = start.line;n<=end.line;n++){
+			if(lines[n].startsWith("#")){
+				//count the number of '#'
+				const numberOfHastags = this.countHastags(lines[n]);
+				if(numberOfHastags < 6){
+					lines[n] = "#"+lines[n];  
+				}else{
+					new Notice('Max heading reached!');
+					return;
+				}
+			}
+		}
+
+		//write the change and set selection
+		await this.writeChange(lines);
+		end.ch+=1;
+		this.cm.setSelection(start,end)
+	}
+
+	async decreaseHeading(){
+		const start = this.cm.getCursor("from");
+		const end = this.cm.getCursor("to");
+		var data = this.cm.getValue();
+		var lines = data.split("\n");
+		for(var n = start.line;n<=end.line;n++){
+			if(lines[n].startsWith("#")){
+				//count the number of '#'
+				const numberOfHastags = this.countHastags(lines[n]);
+				if(numberOfHastags > 1){
+					lines[n] = lines[n].replace("#", "");
+					// lines[n] = "#"+lines[n];  
+				}else{
+					new Notice('Min heading reached!');
+					return;
+				}
+			}
+		}
+
+		//write the change and set selection
+		await this.writeChange(lines);
+		end.ch-=1;
+		this.cm.setSelection(start,end)
+	}
 
 	async onload() {
-		console.log('loading plugin');
-
-		// await this.loadSettings();
-
-		// this.addRibbonIcon('dice', 'Sample Plugin', () => {
-		// 	new Notice('This is a notice!');
-		// });
-
-		// this.addStatusBarItem().setText('Status Bar Text');
-
-		// this.addCommand({
-		// 	id: 'open-sample-modal',
-		// 	name: 'Open Sample Modal',
-		// 	// callback: () => {
-		// 	// 	console.log('Simple Callback');
-		// 	// },
-		// 	checkCallback: (checking: boolean) => {
-		// 		let leaf = this.app.workspace.activeLeaf;
-		// 		if (leaf) {
-		// 			if (!checking) {
-		// 				new SampleModal(this.app).open();
-		// 			}
-		// 			return true;
-		// 		}
-		// 		return false;
-		// 	}
-		// });
+		console.log('loading MY obsidian plugin');
+		this.increaseHeading = this.increaseHeading.bind(this)
 
 		this.addCommand({
 			id: 'increase-heading',
 			name: 'Increase Heading Number',
-			callback: () => {
-				console.log('Increase Heading');
-			},
+			callback: this.increaseHeading,
 			hotkeys: [
 				{
 				  modifiers: ["Shift"],
 				  key: "+",
 				},
 			],
-			// checkCallback: (checking: boolean) => {
-			// 	let leaf = this.app.workspace.activeLeaf;
-			// 	if (leaf) {
-			// 		if (!checking) {
-			// 			new SampleModal(this.app).open();
-			// 		}
-			// 		return true;
-			// 	}
-			// 	return false;
-			// }
 		});
 
+		this.decreaseHeading = this.decreaseHeading.bind(this)
 		this.addCommand({
 			id: 'decrease-heading',
 			name: 'Decrease Heading Number',
-			callback: () => {
-				console.log('Decrease Heading');
-			},
+			callback: this.decreaseHeading,
 			hotkeys: [
 				{
 				  modifiers: ["Shift"],
 				  key: "-",
 				},
-			],
-			// checkCallback: (checking: boolean) => {
-			// 	let leaf = this.app.workspace.activeLeaf;
-			// 	if (leaf) {
-			// 		if (!checking) {
-			// 			new SampleModal(this.app).open();
-			// 		}
-			// 		return true;
-			// 	}
-			// 	return false;
-			// }
+			]
 		});
-
-		// this.addSettingTab(new SampleSettingTab(this.app, this));
 
 		this.registerCodeMirror((cm: CodeMirror.Editor) => {
 			console.log('codemirror', cm);
 			this.cm = cm;
-			// cm.on("cursorActivity",this.listenForCursorPosition)
 		});
-
-		// this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-		// 	console.log('click', evt);
-		// });
-
-		// this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
 	}
 
 	onunload() {
-		console.log('unloading plugin');
+		console.log('unloading MY obsidian plugin');
 	}
 
 	async loadSettings() {
