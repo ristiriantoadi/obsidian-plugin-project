@@ -74,8 +74,7 @@ export default class MyPlugin extends Plugin {
 				//count the number of '#'
 				const numberOfHastags = this.countHastags(lines[n]);
 				if(numberOfHastags > 1){
-					lines[n] = lines[n].replace("#", "");
-					// lines[n] = "#"+lines[n];  
+					lines[n] = lines[n].replace("#", "");  
 				}else{
 					new Notice('Min heading reached!');
 					return;
@@ -87,6 +86,141 @@ export default class MyPlugin extends Plugin {
 		await this.writeChange(lines);
 		end.ch-=1;
 		this.cm.setSelection(start,end)
+	}
+
+	generateHashtags(hashtagsNum:number){
+		var hashtags = ""; 
+		for(var n = 0;n<hashtagsNum;n++){
+			hashtags+="#";
+		}
+		return hashtags;
+	}
+
+	writeDownScratchpad(scratchpad:string,hashtags:string,newContent:string[]):string[]{
+		// write down the scratchpad
+		newContent.push(scratchpad)
+				
+		//write down the current date
+		hashtags+="#";
+		var d = new Date(),
+		month = '' + (d.getMonth() + 1),
+		day = '' + d.getDate(),
+		year = d.getFullYear();
+		if (month.length < 2) 
+			month = '0' + month;
+		if (day.length < 2) 
+			day = '0' + day;
+		var currentDate=[year, month, day].join('-');
+		currentDate =  hashtags+" "+currentDate
+		newContent.push(currentDate)
+
+		return newContent
+	}
+
+	async createScratchpad(){
+		// identify the parent
+		var data = this.cm.getValue();
+		var lines = data.split("\n");
+		var parentHeading = 0;
+		var parentLine = 0;
+		var parentName="";
+		const current = this.cm.getCursor();
+		for(var n = current.line;n>=0;n--){
+			if(lines[n].startsWith("#")){
+				//this is the parent
+				parentHeading = this.countHastags(lines[n]);
+				parentLine = n;
+				parentName = lines[n].replace(/#+ /m,"")
+				break;
+			}
+		}
+
+		// find the end of the section
+		var endSectionLine = lines.length;
+		for (var n = parentLine+1;n<lines.length;n++){
+			if(lines[n].startsWith("#")){
+				if(this.countHastags(lines[n]) <= parentHeading){
+					endSectionLine = n;
+					break;
+				}
+			}
+		}
+
+		// write out the scratchpad
+		var hashtags = this.generateHashtags(parentHeading+1)
+		var scratchpad = hashtags+" scratchpad / "+parentName+ " scratchpad"
+		var newContent:string[] = [];
+		for(var n = 0;n<lines.length;n++){
+			if(n == endSectionLine){
+				newContent = this.writeDownScratchpad(scratchpad,hashtags,newContent)
+			}
+			newContent.push(lines[n]);
+		}
+
+		// if end of section is at the end of page
+		if(endSectionLine == lines.length){
+			newContent = this.writeDownScratchpad(scratchpad,hashtags,newContent)
+		}
+
+		await this.writeChange(newContent)
+		current.line = endSectionLine
+		this.cm.setCursor(current)
+	}
+
+	// list headings
+	async listHeadings(){
+		console.log("list headings called");
+
+		// identify the parent
+		var data = this.cm.getValue();
+		var lines = data.split("\n");
+		var parentHeading = 0;
+		var parentLine = 0;
+		const current = this.cm.getCursor();
+		for(var n = current.line;n>=0;n--){
+			if(lines[n].startsWith("#")){
+				if(n == current.line){
+					new Notice("Put the cursor on a non-heading line");
+					return;
+				}
+				//this is the parent
+				parentHeading = this.countHastags(lines[n]);
+				parentLine = n;
+				break;
+			}
+		}
+
+		//from the parentLine+1 until it met a heading <= of the parent heading
+		// OR, it met the end of the page.
+		var headings = [];
+		for (var n = parentLine+1;n<lines.length;n++){
+			if(lines[n].startsWith("#")){
+				var heading = this.countHastags(lines[n])
+				if(heading <= parentHeading){
+					break;
+				}
+			
+				if(heading-parentHeading == 1){
+					headings.push(lines[n]);
+				}
+			}
+		}
+
+		var newContent=[];
+		for(var n = 0;n<lines.length;n++){
+			if(n == current.line){
+				// write down the list of headings
+				for(var i =0;i<headings.length;i++){
+					// strip headings[i] of its hashtags and then push to the content
+					headings[i] = headings[i].replace(/#+ /m,"")
+					newContent.push(`- ${headings[i]}`)
+				}
+			}
+			newContent.push(lines[n]);
+		}
+		
+		await this.writeChange(newContent)
+		this.cm.setCursor(current)
 	}
 
 	async onload() {
@@ -116,6 +250,20 @@ export default class MyPlugin extends Plugin {
 				  key: "-",
 				},
 			]
+		});
+
+		this.listHeadings = this.listHeadings.bind(this)
+		this.addCommand({
+			id: 'list-headings',
+			name: 'List headings of a section',
+			callback: this.listHeadings,
+		});
+
+		this.createScratchpad = this.createScratchpad.bind(this)
+		this.addCommand({
+			id: 'create-scratchpad',
+			name: 'Create Scratchpad',
+			callback: this.createScratchpad,
 		});
 
 		this.registerCodeMirror((cm: CodeMirror.Editor) => {
