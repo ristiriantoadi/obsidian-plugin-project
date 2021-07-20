@@ -96,6 +96,36 @@ export default class MyPlugin extends Plugin {
 		return hashtags;
 	}
 
+	getTodayDate(){
+		var d = new Date(),
+		month = '' + (d.getMonth() + 1),
+		date = '' + d.getDate(),
+		year = d.getFullYear();
+		var day;
+		if(d.getDay() == 1){
+			day = "senin"
+		}else if(d.getDay() == 2){
+			day = "selasa";
+		}else if(d.getDay() == 3){
+			day = "rabu";
+		}else if (d.getDay() == 4){
+			day = "kamis";
+		}else if(d.getDay() == 5){
+			day = "jumat";
+		}else if (d.getDay() == 6){
+			day = "sabtu"
+		}else{
+			day = "minggu";
+		}
+		
+		if (month.length < 2) 
+			month = '0' + month;
+		if (date.length < 2) 
+			date = '0' + date;
+		var currentDate=[year, month, date].join('-')+" "+day;
+		return currentDate;
+	}
+
 	writeDownScratchpad(scratchpad:string,hashtags:string,newContent:string[]):string[]{
 		// write down the scratchpad
 		newContent.push(scratchpad)
@@ -291,10 +321,52 @@ export default class MyPlugin extends Plugin {
 		this.cm.setCursor(current)
 	}
 
+	async addTodaySection(){
+		// find parent
+		// identify the parent
+		var data = this.cm.getValue();
+		var lines = data.split("\n");
+		var parentHeading = 0;
+		var parentLine = 0;
+		const current = this.cm.getCursor();
+		for(var n = current.line;n>=0;n--){
+			if(lines[n].startsWith("#")){
+				if(n == current.line){
+					new Notice("Put the cursor on a non-heading line");
+					return;
+				}
+				//this is the parent
+				parentHeading = this.countHastags(lines[n]);
+				parentLine = n;
+				break;
+			}
+		}
+
+		var todaySection = this.generateHashtags(parentHeading+1)+" "+this.getTodayDate();
+		
+		var newContent=[];
+		for(var n = 0;n<lines.length;n++){
+			if(n == current.line){
+				newContent.push(todaySection);
+			}
+			newContent.push(lines[n]);
+		}
+		
+		await this.writeChange(newContent)
+		this.cm.setCursor(current)
+	}
+
 	async onload() {
 		console.log('loading MY obsidian plugin');
-		this.increaseHeading = this.increaseHeading.bind(this)
 
+		this.addTodaySection = this.addTodaySection.bind(this)
+		this.addCommand({
+			id: 'add-today-section',
+			name: 'Add today section',
+			callback: this.addTodaySection,
+		});
+
+		this.increaseHeading = this.increaseHeading.bind(this)
 		this.addCommand({
 			id: 'increase-heading',
 			name: 'Increase Heading Number',
