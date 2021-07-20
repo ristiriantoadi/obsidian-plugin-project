@@ -208,12 +208,6 @@ export default class MyPlugin extends Plugin {
 			}
 		}
 
-		// check if parent scratchpad section
-		// if(parentName.match(/^(scratchpad \/|first scratchpad)/i)){
-		// 	new Notice("cant create scratchpad for scratchpad")
-		// 	return;
-		// }
-
 		// check if cursor is currently inside scratchpad
 		if(this.isCursorInScratchpad(current)){
 			new Notice("cant create scratchpad for scratchpad")
@@ -233,8 +227,6 @@ export default class MyPlugin extends Plugin {
 
 		// check whether or not scratchpad already exist
 		for(var n = parentLine+1;n<endSectionLine;n++){
-			// var matches = lines[n].match(/(#)+ (scratchpad|first scratchpad)/i)
-			// console.log("matches",matches)
 			if(lines[n].match(/(#)+ (scratchpad \/|first scratchpad)/i)){
 				new Notice("Scratchpad already exist");
 				return;
@@ -261,8 +253,10 @@ export default class MyPlugin extends Plugin {
 		}
 
 		await this.writeChange(newContent)
-		current.line = endSectionLine
 		this.cm.setCursor(current)
+		this.createEol()
+		// current.line = endSectionLine
+		// this.cm.setCursor(current)
 	}
 
 	// list headings
@@ -273,7 +267,7 @@ export default class MyPlugin extends Plugin {
 		var data = this.cm.getValue();
 		var lines = data.split("\n");
 		var parentHeading = 0;
-		var parentLine = 0;
+		var parentLine = -1;
 		const current = this.cm.getCursor();
 		for(var n = current.line;n>=0;n--){
 			if(lines[n].startsWith("#")){
@@ -327,7 +321,7 @@ export default class MyPlugin extends Plugin {
 		var data = this.cm.getValue();
 		var lines = data.split("\n");
 		var parentHeading = 0;
-		var parentLine = 0;
+		var parentLine = -1;
 		const current = this.cm.getCursor();
 		for(var n = current.line;n>=0;n--){
 			if(lines[n].startsWith("#")){
@@ -356,8 +350,83 @@ export default class MyPlugin extends Plugin {
 		this.cm.setCursor(current)
 	}
 
+	async createEol(){
+		// find parent
+		// identify the parent
+		var data = this.cm.getValue();
+		var lines = data.split("\n");
+		var parentHeading = 0;
+		var parentLine = -1;
+		var parentName="";
+		const current = this.cm.getCursor();
+		for(var n = current.line;n>=0;n--){
+			if(lines[n].startsWith("#")){
+				//this is the parent
+				parentHeading = this.countHastags(lines[n]);
+				parentLine = n;
+				parentName = lines[n].replace(/#+ /m,"")
+				break;
+			}
+		}
+
+		// check if it's inside scratchpad
+		if(!this.isCursorInScratchpad(current)){
+			// find the scratchpad section
+			var endSectionLine = lines.length;
+			var scratchpadExist=false;
+			for (var n = parentLine+1;n<lines.length;n++){
+				if(lines[n].match(/(#)+ (scratchpad \/|first scratchpad)/i)){
+					scratchpadExist=true;
+				}
+				
+				if(lines[n].startsWith("#")){
+					if(this.countHastags(lines[n]) <= parentHeading){
+						endSectionLine = n;
+						break;
+					}
+				}
+			}
+
+			if(!scratchpadExist){
+				new Notice("Create scratchpad first");
+				return;
+			}
+			
+			// write out the eol
+			var eol = "**first eol**";
+			if(parentName != "")
+				eol = "**"+parentName+" eol**";
+			var newContent:string[] = [];
+			for(var n = 0;n<lines.length;n++){
+				if(n == endSectionLine){
+					newContent.push(eol);
+				}
+				newContent.push(lines[n]);
+			}
+
+			// if end of section is at the end of page
+			if(endSectionLine == lines.length){
+				newContent.push(eol);
+			}
+
+			await this.writeChange(newContent)
+			current.line = endSectionLine
+			this.cm.setCursor(current)
+		}else{
+			new Notice("cant create eol for scratchpad");
+			return;
+		}
+	}
+
 	async onload() {
 		console.log('loading MY obsidian plugin');
+
+		this.createEol = this.createEol.bind(this)
+		this.addCommand({
+			id: 'create-eol',
+			name: 'Create EOL',
+			callback: this.createEol,
+		});
 
 		this.addTodaySection = this.addTodaySection.bind(this)
 		this.addCommand({
