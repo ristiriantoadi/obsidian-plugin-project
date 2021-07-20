@@ -122,7 +122,7 @@ export default class MyPlugin extends Plugin {
 		var data = this.cm.getValue();
 		var lines = data.split("\n");
 		for(var n = line;n>=0;n--){
-			if(lines[n].match(/(#)+ (scratchpad|first scratchpad)/i)){
+			if(lines[n].match(/(#)+ (scratchpad \/|first scratchpad)/i)){
 				return true;
 			}
 		}
@@ -148,7 +148,7 @@ export default class MyPlugin extends Plugin {
 		}
 
 		// check if parent scratchpad section
-		if(parentName.match(/(scratchpad|first scratchpad)/i)){
+		if(parentName.match(/^(scratchpad \/|first scratchpad)/i)){
 			new Notice("cant create scratchpad for scratchpad")
 			return;
 		}
@@ -174,7 +174,7 @@ export default class MyPlugin extends Plugin {
 		for(var n = parentLine+1;n<endSectionLine;n++){
 			// var matches = lines[n].match(/(#)+ (scratchpad|first scratchpad)/i)
 			// console.log("matches",matches)
-			if(lines[n].match(/(#)+ (scratchpad|first scratchpad)/i)){
+			if(lines[n].match(/(#)+ (scratchpad \/|first scratchpad)/i)){
 				new Notice("Scratchpad already exist");
 				return;
 			}
