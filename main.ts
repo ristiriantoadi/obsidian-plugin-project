@@ -329,6 +329,10 @@ export default class MyPlugin extends Plugin {
 					new Notice("Put the cursor on a non-heading line");
 					return;
 				}
+				//if it match a today section, then simply continue
+				if(lines[n].match(/(#)+ [0-9]{4}-[0-9]{2}-[0-9]{2}/)){
+					continue;
+				}
 				//this is the parent
 				parentHeading = this.countHastags(lines[n]);
 				parentLine = n;
