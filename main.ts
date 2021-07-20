@@ -104,13 +104,30 @@ export default class MyPlugin extends Plugin {
 		hashtags+="#";
 		var d = new Date(),
 		month = '' + (d.getMonth() + 1),
-		day = '' + d.getDate(),
+		date = '' + d.getDate(),
 		year = d.getFullYear();
+		var day;
+		if(d.getDay() == 1){
+			day = "senin"
+		}else if(d.getDay() == 2){
+			day = "selasa";
+		}else if(d.getDay() == 3){
+			day = "rabu";
+		}else if (d.getDay() == 4){
+			day = "kamis";
+		}else if(d.getDay() == 5){
+			day = "jumat";
+		}else if (d.getDay() == 6){
+			day = "sabtu"
+		}else{
+			day = "minggu";
+		}
+		
 		if (month.length < 2) 
 			month = '0' + month;
-		if (day.length < 2) 
-			day = '0' + day;
-		var currentDate=[year, month, day].join('-');
+		if (date.length < 2) 
+			date = '0' + date;
+		var currentDate=[year, month, date].join('-')+" "+day;
 		currentDate =  hashtags+" "+currentDate
 		newContent.push(currentDate)
 
