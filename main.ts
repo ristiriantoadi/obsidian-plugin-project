@@ -122,8 +122,22 @@ export default class MyPlugin extends Plugin {
 		var data = this.cm.getValue();
 		var lines = data.split("\n");
 		for(var n = line;n>=0;n--){
-			if(lines[n].match(/(#)+ (scratchpad \/|first scratchpad)/i)){
-				return true;
+			if(lines[n].startsWith("#")){
+				// if it match a scratchpad, then it must have been inside scratchpad
+				if(lines[n].match(/(#)+ (scratchpad \/|first scratchpad)/i)){
+					return true;
+				}
+				// if it match a day section, then it MIGHT be inside scratchpad (but not always), so continue searching
+				// upward
+				else if(lines[n].match(/(#)+ [0-9]{4}-[0-9]{2}-[0-9]{2}/)){
+					continue;
+				}
+				// if it doesnt match a scratchpad, or a day section, then it must be a regular section
+				// therefore, it must NOT BE inside scratchpad
+				else{
+					return false;
+				}
+
 			}
 		}
 		return false;
@@ -148,16 +162,16 @@ export default class MyPlugin extends Plugin {
 		}
 
 		// check if parent scratchpad section
-		if(parentName.match(/^(scratchpad \/|first scratchpad)/i)){
-			new Notice("cant create scratchpad for scratchpad")
-			return;
-		}
-
-		// check if cursor is currently inside scratchpad
-		// if(this.isCursorInScratchpad(current)){
+		// if(parentName.match(/^(scratchpad \/|first scratchpad)/i)){
 		// 	new Notice("cant create scratchpad for scratchpad")
 		// 	return;
 		// }
+
+		// check if cursor is currently inside scratchpad
+		if(this.isCursorInScratchpad(current)){
+			new Notice("cant create scratchpad for scratchpad")
+			return;
+		}
 
 		// find the end of the section
 		var endSectionLine = lines.length;
