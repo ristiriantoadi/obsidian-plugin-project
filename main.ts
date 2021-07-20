@@ -117,12 +117,24 @@ export default class MyPlugin extends Plugin {
 		return newContent
 	}
 
+	isCursorInScratchpad(current:CodeMirror.Position){
+		var line = current.line
+		var data = this.cm.getValue();
+		var lines = data.split("\n");
+		for(var n = line;n>=0;n--){
+			if(lines[n].match(/(#)+ (scratchpad|first scratchpad)/i)){
+				return true;
+			}
+		}
+		return false;
+	}
+
 	async createScratchpad(){
 		// identify the parent
 		var data = this.cm.getValue();
 		var lines = data.split("\n");
 		var parentHeading = 0;
-		var parentLine = 0;
+		var parentLine = -1;
 		var parentName="";
 		const current = this.cm.getCursor();
 		for(var n = current.line;n>=0;n--){
@@ -135,6 +147,18 @@ export default class MyPlugin extends Plugin {
 			}
 		}
 
+		// check if parent scratchpad section
+		if(parentName.match(/(scratchpad|first scratchpad)/i)){
+			new Notice("cant create scratchpad for scratchpad")
+			return;
+		}
+
+		// check if cursor is currently inside scratchpad
+		// if(this.isCursorInScratchpad(current)){
+		// 	new Notice("cant create scratchpad for scratchpad")
+		// 	return;
+		// }
+
 		// find the end of the section
 		var endSectionLine = lines.length;
 		for (var n = parentLine+1;n<lines.length;n++){
@@ -146,9 +170,22 @@ export default class MyPlugin extends Plugin {
 			}
 		}
 
+		// check whether or not scratchpad already exist
+		for(var n = parentLine+1;n<endSectionLine;n++){
+			// var matches = lines[n].match(/(#)+ (scratchpad|first scratchpad)/i)
+			// console.log("matches",matches)
+			if(lines[n].match(/(#)+ (scratchpad|first scratchpad)/i)){
+				new Notice("Scratchpad already exist");
+				return;
+			}
+		}
+
+
 		// write out the scratchpad
 		var hashtags = this.generateHashtags(parentHeading+1)
-		var scratchpad = hashtags+" scratchpad / "+parentName+ " scratchpad"
+		var scratchpad = hashtags+" First Scratchpad"
+		if(parentName != "")
+			var scratchpad = hashtags+" scratchpad / "+parentName+ " scratchpad"
 		var newContent:string[] = [];
 		for(var n = 0;n<lines.length;n++){
 			if(n == endSectionLine){
