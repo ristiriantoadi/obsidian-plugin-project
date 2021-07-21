@@ -40,6 +40,30 @@ export default class MyPlugin extends Plugin {
 		await this.app.vault.modify(currentFile,data)
 	}
 
+	isInsideCode(currentLine:number){
+		//search up until meeting another ```
+		var data = this.cm.getValue();
+		var lines = data.split("\n");
+		for(var n = currentLine;n>=0;n--){
+			if(lines[n].startsWith("```")){
+				//count how many ticks above it
+				// if there is zero or even number of ticks, then it must be opening tick
+				// therefore, the line is INDEED inside a code block
+				// else, return false
+				var countTick = 0;
+				for(var i = n-1;i>=0;i--){
+					if(lines[i].startsWith("```")){
+						countTick++;
+					}
+				}
+				if(countTick%2==0){
+					return true;
+				}else return false;
+			}
+		}
+		return false;
+	}
+
 	async increaseHeading(){
 		const start = this.cm.getCursor("from");
 		const end = this.cm.getCursor("to");
@@ -47,13 +71,17 @@ export default class MyPlugin extends Plugin {
 		var lines = data.split("\n");
 		for(var n = start.line;n<=end.line;n++){
 			if(lines[n].startsWith("#")){
-				//count the number of '#'
-				const numberOfHastags = this.countHastags(lines[n]);
-				if(numberOfHastags < 6){
-					lines[n] = "#"+lines[n];  
+				if(!this.isInsideCode(n)){
+					//count the number of '#'
+					const numberOfHastags = this.countHastags(lines[n]);
+					if(numberOfHastags < 6){
+						lines[n] = "#"+lines[n];  
+					}else{
+						new Notice('Max heading reached!');
+						return;
+					}
 				}else{
-					new Notice('Max heading reached!');
-					return;
+					// return;
 				}
 			}
 		}
