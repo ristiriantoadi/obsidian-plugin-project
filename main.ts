@@ -80,8 +80,6 @@ export default class MyPlugin extends Plugin {
 						new Notice('Max heading reached!');
 						return;
 					}
-				}else{
-					// return;
 				}
 			}
 		}
@@ -99,13 +97,15 @@ export default class MyPlugin extends Plugin {
 		var lines = data.split("\n");
 		for(var n = start.line;n<=end.line;n++){
 			if(lines[n].startsWith("#")){
-				//count the number of '#'
-				const numberOfHastags = this.countHastags(lines[n]);
-				if(numberOfHastags > 1){
-					lines[n] = lines[n].replace("#", "");  
-				}else{
-					new Notice('Min heading reached!');
-					return;
+				if(!this.isInsideCode(n)){
+					//count the number of '#'
+					const numberOfHastags = this.countHastags(lines[n]);
+					if(numberOfHastags > 1){
+						lines[n] = lines[n].replace("#", "");  
+					}else{
+						new Notice('Min heading reached!');
+						return;
+					}
 				}
 			}
 		}
@@ -246,9 +246,11 @@ export default class MyPlugin extends Plugin {
 		var endSectionLine = lines.length;
 		for (var n = parentLine+1;n<lines.length;n++){
 			if(lines[n].startsWith("#")){
-				if(this.countHastags(lines[n]) <= parentHeading){
-					endSectionLine = n;
-					break;
+				if(!this.isInsideCode(n)){
+					if(this.countHastags(lines[n]) <= parentHeading){
+						endSectionLine = n;
+						break;
+					}
 				}
 			}
 		}
@@ -283,14 +285,10 @@ export default class MyPlugin extends Plugin {
 		await this.writeChange(newContent)
 		this.cm.setCursor(current)
 		this.createEol()
-		// current.line = endSectionLine
-		// this.cm.setCursor(current)
 	}
 
 	// list headings
 	async listHeadings(){
-		console.log("list headings called");
-
 		// identify the parent
 		var data = this.cm.getValue();
 		var lines = data.split("\n");
@@ -315,13 +313,14 @@ export default class MyPlugin extends Plugin {
 		var headings = [];
 		for (var n = parentLine+1;n<lines.length;n++){
 			if(lines[n].startsWith("#")){
-				var heading = this.countHastags(lines[n])
-				if(heading <= parentHeading){
-					break;
-				}
-			
-				if(heading-parentHeading == 1){
-					headings.push(lines[n]);
+				if(!this.isInsideCode(n)){
+					var heading = this.countHastags(lines[n])
+					if(heading <= parentHeading){
+						break;
+					}
+					if(heading-parentHeading == 1){
+						headings.push(lines[n]);
+					}	
 				}
 			}
 		}
@@ -407,16 +406,19 @@ export default class MyPlugin extends Plugin {
 			var endSectionLine = lines.length;
 			var scratchpadExist=false;
 			for (var n = parentLine+1;n<lines.length;n++){
+				if(lines[n].startsWith("#")){
+					if(!this.isInsideCode(n)){
+						if(this.countHastags(lines[n]) <= parentHeading){
+							endSectionLine = n;
+							break;
+						}
+					}
+				}
+				
 				if(lines[n].match(/(#)+ (scratchpad \/|first scratchpad)/i)){
 					scratchpadExist=true;
 				}
 				
-				if(lines[n].startsWith("#")){
-					if(this.countHastags(lines[n]) <= parentHeading){
-						endSectionLine = n;
-						break;
-					}
-				}
 			}
 
 			if(!scratchpadExist){
@@ -508,7 +510,6 @@ export default class MyPlugin extends Plugin {
 		});
 
 		this.registerCodeMirror((cm: CodeMirror.Editor) => {
-			console.log('codemirror', cm);
 			this.cm = cm;
 		});
 	}
